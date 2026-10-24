@@ -82,10 +82,10 @@ print(f"\nTotal TIFF images matched: "
 print(f"Unique image tile IDs: {len(image_tiles)}")
 
 print(f"Tiles with exactly 6 temporal images: "
-      f"{sum(n == 6 for n in images_per_tile.values())}")
+      f"images_per_tile.get(6, 0)")
 
 print(f"Tiles with a different image count: "
-      f"{sum(n != 6 for n in images_per_tile.values())}")
+      f"{sum(count for n, count in images_per_tile.items() if n != 6)}")
 
 print(f"Labelled tiles in JSON: {len(labels_by_tile)}")
 print(f"Positive labels (1): {positive}")
