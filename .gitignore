@@ -4,3 +4,7 @@ haryana_dataset/
 *.tif
 *.tiff
 haryana_dataset/
+haryana_dataset_sr/
+haryana_dataset_original.zip
+haryana_dataset_final.zip
+model/
