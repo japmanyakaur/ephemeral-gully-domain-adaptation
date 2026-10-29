@@ -27,12 +27,12 @@ import rasterio
 from PIL import Image
 
 
-# ── DEFAULTS (Yamunanagar agricultural zone, UTM 43N) ────────────────
+# ── DEFAULTS (Hisar agricultural zone, UTM 43N — tile 43REM) ────────
 DEFAULT_CROP = {
-    "xmin": 655000,
-    "xmax": 685000,
-    "ymin": 3340000,
-    "ymax": 3370000,
+    "xmin": 520000,
+    "xmax": 590000,
+    "ymin": 3100000,
+    "ymax": 3180000,
 }
 TILE_SIZE = 128          # pixels per side
 NUM_TILES = 50           # how many tiles to extract
@@ -49,6 +49,11 @@ def parse_args():
     p.add_argument("--xmax", type=float, default=DEFAULT_CROP["xmax"])
     p.add_argument("--ymin", type=float, default=DEFAULT_CROP["ymin"])
     p.add_argument("--ymax", type=float, default=DEFAULT_CROP["ymax"])
+    p.add_argument(
+        "--reuse-locations", default=None, metavar="CSV",
+        help="Path to an existing metadata.csv — extract tiles at the SAME "
+             "UTM coordinates for a new date (multi-temporal mode)",
+    )
     return p.parse_args()
 
 
@@ -102,44 +107,84 @@ def main():
     n_bands, H, W = data.shape
     print(f"  Array shape: {data.shape}")
 
-    # ── Find valid agricultural tile positions ──
-    step = args.tile_size
-    positions = []
+    # ── Decide tile positions ──
+    if args.reuse_locations:
+        # ── Multi-temporal mode: use locations from a previous run ──
+        print(f"\n  Reusing locations from {args.reuse_locations}")
+        ref_rows = []
+        with open(args.reuse_locations, "r") as f:
+            reader = csv.DictReader(f)
+            seen_ids = set()
+            for row in reader:
+                tid = int(row["tile_id"])
+                if tid not in seen_ids:
+                    ref_rows.append(row)
+                    seen_ids.add(tid)
 
-    for r in range(0, H - args.tile_size + 1, step):
-        for c in range(0, W - args.tile_size + 1, step):
-            chip = data[:, r:r + args.tile_size, c:c + args.tile_size]
+        selected = []
+        for row in ref_rows:
+            utm_x = float(row["utm_x"])
+            utm_y = float(row["utm_y"])
+            # Convert UTM → pixel offset within crop window
+            col = int(round((utm_x - args.xmin) / pixel_size))
+            r   = int(round((args.ymax - utm_y) / pixel_size))
+            # Bounds check
+            if (0 <= r <= H - args.tile_size and
+                0 <= col <= W - args.tile_size):
+                chip = data[:, r:r + args.tile_size, col:col + args.tile_size]
+                valid = np.count_nonzero(chip[0]) / (args.tile_size ** 2)
+                if valid >= 0.5:   # relaxed for different seasons
+                    r_ch = chip[0].astype(float)
+                    g_ch = chip[1].astype(float)
+                    green_frac = float((g_ch > r_ch).sum()) / (args.tile_size ** 2)
+                    selected.append((r, col, green_frac, int(row["tile_id"])))
+                else:
+                    print(f"    SKIP tile {row['tile_id']} — too much nodata ({valid:.0%})")
+            else:
+                print(f"    SKIP tile {row['tile_id']} — outside crop bounds")
 
-            # Skip tiles with too much nodata
-            if np.count_nonzero(chip[0]) / (args.tile_size ** 2) < 0.9:
-                continue
+        print(f"  Matched {len(selected)} of {len(ref_rows)} reference locations")
+    else:
+        # ── Discovery mode: find new agricultural positions ──
+        step = args.tile_size
+        positions = []
 
-            # Vegetation filter: green > red → likely crops/vegetation
-            r_ch = chip[0].astype(float)
-            g_ch = chip[1].astype(float)
-            green_frac = (g_ch > r_ch).sum() / (args.tile_size ** 2)
+        for r in range(0, H - args.tile_size + 1, step):
+            for c in range(0, W - args.tile_size + 1, step):
+                chip = data[:, r:r + args.tile_size, c:c + args.tile_size]
 
-            if green_frac > MIN_VEG_FRAC:
-                positions.append((r, c, green_frac))
+                # Skip tiles with too much nodata
+                if np.count_nonzero(chip[0]) / (args.tile_size ** 2) < 0.9:
+                    continue
 
-    # Sort by vegetation fraction (most agricultural first)
-    positions.sort(key=lambda x: -x[2])
-    print(f"\n  Valid agricultural positions: {len(positions)}")
+                # Vegetation filter: green > red → likely crops/vegetation
+                r_ch = chip[0].astype(float)
+                g_ch = chip[1].astype(float)
+                green_frac = (g_ch > r_ch).sum() / (args.tile_size ** 2)
 
-    # Spread tiles evenly across the region
-    stride = max(1, len(positions) // args.num_tiles)
-    selected = positions[::stride][:args.num_tiles]
-    print(f"  Selected tiles: {len(selected)}")
+                if green_frac > MIN_VEG_FRAC:
+                    positions.append((r, c, green_frac))
+
+        # Sort by vegetation fraction (most agricultural first)
+        positions.sort(key=lambda x: -x[2])
+        print(f"\n  Valid agricultural positions: {len(positions)}")
+
+        # Spread tiles evenly across the region
+        stride = max(1, len(positions) // args.num_tiles)
+        selected_raw = positions[::stride][:args.num_tiles]
+        # Add sequential tile_id
+        selected = [(r, c, vf, idx) for idx, (r, c, vf) in enumerate(selected_raw)]
+        print(f"  Selected tiles: {len(selected)}")
 
     # ── Save tiles + metadata ──
     meta_rows = []
 
-    for idx, (row, col, veg_frac) in enumerate(selected):
+    for (row, col, veg_frac, tile_id) in selected:
         chip = np.transpose(
             data[:3, row:row + args.tile_size, col:col + args.tile_size],
             (1, 2, 0),
         )
-        fname = f"rgb_0_tile_{idx}.png"
+        fname = f"rgb_0_tile_{tile_id}.png"
         Image.fromarray(chip).save(os.path.join(img_dir, fname))
 
         # UTM coordinates of tile top-left corner
@@ -147,7 +192,7 @@ def main():
         utm_y = args.ymax - row * pixel_size
 
         meta_rows.append({
-            "tile_id": idx,
+            "tile_id": tile_id,
             "filename": fname,
             "date": date_str,
             "utm_x": utm_x,
@@ -160,18 +205,30 @@ def main():
             "label": "",
         })
 
+    # ── Save / append metadata ──
     csv_path = os.path.join(args.output, "metadata.csv")
-    with open(csv_path, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=meta_rows[0].keys())
-        w.writeheader()
-        w.writerows(meta_rows)
+    file_exists = os.path.exists(csv_path)
+
+    if args.reuse_locations and file_exists:
+        # Append new rows to existing CSV
+        with open(csv_path, "a", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=meta_rows[0].keys())
+            w.writerows(meta_rows)
+        print(f"\n  Appended {len(meta_rows)} rows to {csv_path}")
+    else:
+        with open(csv_path, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=meta_rows[0].keys())
+            w.writeheader()
+            w.writerows(meta_rows)
 
     print(f"\n=== DONE ===")
     print(f"  {len(selected)} tiles → {img_dir}")
     print(f"  Metadata   → {csv_path}")
     print(f"  Tile size  : {args.tile_size}x{args.tile_size} px at {pixel_size:.0f}m")
     print(f"  Ground size: {args.tile_size * pixel_size:.0f}m x {args.tile_size * pixel_size:.0f}m per tile")
-    print(f"\n  Next: run 02_super_resolve.py to enhance to 2.5m")
+    if args.reuse_locations:
+        print(f"  Mode       : multi-temporal (reused {len(selected)} locations)")
+    print(f"\n  Next: run 02b_super_resolve_sen2sr.py to enhance to 2.5m")
 
 
 if __name__ == "__main__":
