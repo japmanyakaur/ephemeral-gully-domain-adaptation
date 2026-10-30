@@ -125,7 +125,6 @@ haryana_dataset_final/
 
 ---
 
-
 Sentinel-2 is the only freely available, legally redistributable satellite imagery covering Indian agriculture at this scale. Commercial sources (Google Earth, Planet) prohibit redistribution, and NAIP is US-only. SEN2SR super-resolution bridges the resolution gap from 10 m to 2.5 m while keeping the dataset fully open.
 
 
