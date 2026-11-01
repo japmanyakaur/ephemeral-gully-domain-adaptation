@@ -4,6 +4,7 @@ A multi-temporal Sentinel-2 dataset and processing pipeline for ephemeral gully 
 
 ---
 
+
 ## Dataset
 
 | | Haryana (this work) | Missouri (source) |
