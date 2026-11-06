@@ -1,14 +1,21 @@
+# Raw satellite scenes and intermediate build folders (regenerate with notebooks/00_rebuild_hisar_dataset.ipynb)
 *.tif
 *.tiff
-haryana_dataset/
-*.tif
-*.tiff
+raw_scenes/
 haryana_dataset/
 haryana_dataset_sr/
-haryana_dataset_original.zip
-haryana_dataset_final.zip
+tiles_10m/
+tiles_sr/
 model/
-haryana_dataset_sr/
-haryana_dataset_original.zip
-haryana_dataset_final.zip
-model/
+
+# Zips go to GitHub Releases, not into the repo
+*.zip
+
+# Collages are large and can be regenerated with 07_make_collages.py (also attached to the release)
+collages_*/
+
+# Python / notebook clutter
+__pycache__/
+.ipynb_checkpoints/
+.virtual_documents/
+*.log
