@@ -1,0 +1,2 @@
+Hisar false alarms, B vs C (trained on 621): both 60, only B 22, only C 0, exact McNemar p = 4.8e-07
+Hisar false alarms, B vs C (trained on test150): both 63, only B 19, only C 0, exact McNemar p = 3.8e-06
