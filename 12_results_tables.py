@@ -8,12 +8,19 @@ Protocol (fixed before looking at Hisar):
   * Hisar = 297 labelled locations (10 gully, 3 skipped). For Hisar, C is reported twice:
     trained on test150 only, and trained on all 621 Missouri locations.
 
+Also writes the paper's Table 2 (prompt comparison, Qwen2.5-VL-7B) and Table 3 (model comparison) from
+the per-location answers in results/missouri/, all on the same 150 test locations. For Table 3 the cut-off
+of each model is the best of 2-5 on these 150 fields (as in notebook 08c), so its balanced accuracy is
+slightly optimistic; AUC does not depend on a cut-off. Gemma 4 26B's row comes from the full run.
+
 Confidence intervals: bootstrap (2000 stratified resamples) for AUC and balanced accuracy;
 Wilson intervals for rates on Hisar (false-alarm rate, gullies found).
+Also reported: average precision (its chance level is the gully share), and accuracy, F1 for
+the gully class and macro F1 (the metrics Tousi et al. report).
 
 Usage:
   python 12_results_tables.py --a-dir results/pipeline_a_full --b-dir results/pipeline_b \
-      --test150 results/missouri/pipeline_a_gemma4-26b_missouri.csv \
+      --test150 results/missouri/test150_ids.csv \
       --labels labels/hisar_labels_final.csv --out results/tables
 """
 import argparse
@@ -23,7 +30,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import binomtest
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score, balanced_accuracy_score
+from sklearn.metrics import (roc_auc_score, balanced_accuracy_score, average_precision_score,
+                             accuracy_score, f1_score)
 
 Q = [f"q{i}" for i in range(1, 20)]
 
@@ -54,15 +62,59 @@ def row(region, method, y, s, pred):
                 bal_acc=balanced_accuracy_score(y, pred), bal_lo=bal_ci[0], bal_hi=bal_ci[1],
                 found=tp / (tp + fn), found_lo=sens_ci[0], found_hi=sens_ci[1],
                 false_alarm=fp / (fp + tn), fa_lo=far_ci[0], fa_hi=far_ci[1],
-                flagged=(tp + fp) / len(y), precision=tp / max(tp + fp, 1))
+                flagged=(tp + fp) / len(y), precision=tp / max(tp + fp, 1),
+                avg_precision=average_precision_score(y, s), prevalence=y.mean(),
+                accuracy=accuracy_score(y, pred), f1_gully=f1_score(y, pred, zero_division=0),
+                macro_f1=f1_score(y, pred, average="macro", zero_division=0))
+
+
+def score_summary(name, df, ids):
+    """One row of Table 3: a 1-5 score file restricted to the 150 test locations."""
+    d = df[df["tile_id"].isin(ids) & df["label"].astype(str).isin(["0", "1"])].copy()
+    d["s"] = pd.to_numeric(d["score"], errors="coerce")
+    valid = d.dropna(subset=["s"])
+    y, s = valid["label"].astype(int).values, valid["s"].astype(int).values
+    best = max(((t, balanced_accuracy_score(y, (s >= t).astype(int)), (s >= t).mean()) for t in [2, 3, 4, 5]),
+               key=lambda r: r[1])
+    return dict(model=name, valid=f"{len(valid)}/{len(d)}", AUC=roc_auc_score(y, s), best_cutoff=best[0],
+                bal_acc=best[1], accuracy=accuracy_score(y, (s >= best[0]).astype(int)), said_gully=best[2],
+                sec_per_location=d["seconds"].median())
+
+
+def model_and_prompt_tables(args, ids):
+    md = args.missouri_dir
+    rows = [score_summary("LLaVA-Llama3 8B", pd.read_csv(f"{md}/pipeline_a_llava-llama3-8b_missouri.csv"), ids),
+            score_summary("Qwen2.5-VL 7B", pd.read_csv(f"{md}/pipeline_a_qwen2.5vl-7b_missouri.csv"), ids),
+            score_summary("Gemma 4 26B", pd.read_csv(f"{args.a_dir}/pipeline_a_gemma4-26b_missouri.csv"), ids)]
+    t3 = pd.DataFrame(rows)
+    t3.to_csv(f"{args.out}/model_comparison_test150.csv", index=False)
+
+    # Table 2: yes/no prompt (A1, all 621 fields) vs evidence-first 1-5 prompt, both Qwen2.5-VL-7B
+    a1 = pd.read_csv(f"{md}/pipeline_a_missouri.csv")
+    a1 = a1[a1["label"].astype(str).isin(["0", "1"])]
+    p1, y1 = a1["pred"].astype(int).values, a1["label"].astype(int).values
+    sub = a1["tile_id"].isin(ids).values
+    ev = rows[1]
+    t2 = pd.DataFrame([
+        dict(prompt="yes/no", fields="all 621", AUC=float("nan"), bal_acc=balanced_accuracy_score(y1, p1),
+             accuracy=accuracy_score(y1, p1), said_gully=p1.mean()),
+        dict(prompt="yes/no", fields="test150", AUC=float("nan"), bal_acc=balanced_accuracy_score(y1[sub], p1[sub]),
+             accuracy=accuracy_score(y1[sub], p1[sub]), said_gully=p1[sub].mean()),
+        dict(prompt="evidence first, 1-5 score", fields="test150", AUC=ev["AUC"], bal_acc=ev["bal_acc"],
+             accuracy=ev["accuracy"], said_gully=ev["said_gully"])])
+    t2.to_csv(f"{args.out}/prompt_comparison_qwen2.5vl.csv", index=False)
+    print("\nTable 2 (Qwen2.5-VL-7B prompts):"); print(t2.round(3).to_string(index=False))
+    print("\nTable 3 (models, 150 test locations):"); print(t3.round(3).to_string(index=False))
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--a-dir", default="results/pipeline_a_full")
     ap.add_argument("--b-dir", default="results/pipeline_b")
-    ap.add_argument("--test150", default="results/missouri/pipeline_a_gemma4-26b_missouri.csv",
-                    help="any CSV whose tile_id column lists the 150 test locations")
+    ap.add_argument("--test150", default="results/missouri/test150_ids.csv",
+                    help="CSV whose tile_id column lists the 150 test locations (75 gully, 75 no gully, seed 42)")
+    ap.add_argument("--missouri-dir", default="results/missouri",
+                    help="folder with the Pipeline A runs on the 150 test locations (Tables 2 and 3)")
     ap.add_argument("--labels", default="labels/hisar_labels_final.csv")
     ap.add_argument("--out", default="results/tables")
     args = ap.parse_args()
@@ -123,7 +175,10 @@ def main():
     show["found"] = show.apply(lambda r: f"{r.TP}/{r.TP + r.FN} = {r.found:.2f} ({r.found_lo:.2f}-{r.found_hi:.2f})", axis=1)
     show["false_alarm"] = show.apply(lambda r: f"{100 * r.false_alarm:.1f}% ({100 * r.fa_lo:.1f}-{100 * r.fa_hi:.1f})", axis=1)
     print(show[["region", "method", "AUC", "bal_acc", "found", "false_alarm", "flagged", "precision"]].round(3).to_string(index=False))
+    print("\nAverage precision (baseline = prevalence) and the metrics Tousi et al. report:")
+    print(out[["region", "method", "avg_precision", "prevalence", "accuracy", "f1_gully", "macro_f1"]].round(3).to_string(index=False))
     print("\n".join(lines))
+    model_and_prompt_tables(args, t150)
     print(f"Saved to {args.out}/")
 
 
