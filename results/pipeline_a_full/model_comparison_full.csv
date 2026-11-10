@@ -1,2 +1,0 @@
-model,scored,AUC,threshold,balanced_acc,acc,F1,yes_rate,sec_per_img,score_counts
-gemma4:26b,621/621,0.853,4,0.826,0.824,0.841,0.54,5.1,"{1: 194, 2: 69, 3: 25, 4: 265, 5: 68}"
