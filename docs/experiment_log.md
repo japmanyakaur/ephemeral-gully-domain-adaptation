@@ -1,6 +1,6 @@
 # Ephemeral Gully Detection in Hisar–Fatehabad–Sirsa: Project Status, Log and Results
 
-*The one document for this project: where things stand, every step and result so far, and the plan, written so each part can go straight into the paper draft. Status on 9 November: dataset, labels, terrain analysis and all three pipelines (A, B, C) are done and on GitHub; the cross-resolution test, figures and the paper draft are next, on track for 30 November. AgriWEF 2027, IIT Kharagpur (conference 2–4 February 2027). Acceptance notification 15 November, registration by 25 November, full paper due 30 November 2026; proceedings or edited book for selected papers. Last updated 9 November 2026.*
+*The one document for this project: where things stand, every step and result so far, and the plan, written so each part can go straight into the paper draft. Status on 9 November: dataset, labels, terrain analysis and all three pipelines (A, B, C) are done and on GitHub; the cross-resolution test, figures and the paper draft are next, on track for 30 November. AgriWEF 2027, IIT Kharagpur (conference 2–4 February 2027). Acceptance notification 15 November, registration by 25 November, full paper due 30 November 2026; proceedings or edited book for selected papers. Last updated 10 November 2026.*
 
 ## 1. Key results at a glance
 
@@ -48,6 +48,7 @@ These are the numbers to quote in the abstract, results and conclusion. Each one
 | 8 Nov | Pipeline C built and run on a laptop CPU (about 2 minutes): Missouri cross-validation, transfer to Hisar, and four ways of using 10–200 local labels, 200 random draws each | 11_pipeline_c.py, results/pipeline_c/ |
 | 8 Nov | Main results table for A, B and C on the same fields, with confidence intervals and a paired test | 12_results_tables.py, results/tables/ |
 | 9 Nov | Terrain script run by the author and committed; the saved numbers match Section 5. Pipeline B, Pipeline C, results table, labels and this log pushed to GitHub. Pre-submission review: conference pages read (no template or page limit published), risks and strengths in Section 15, to-do list updated. GitHub clean-up: failed and partial result files removed; Tables 2 and 3 rebuilt only from saved files by 12_results_tables.py | results/terrain/ |
+| 10 Nov | GitHub clean-up committed (failed files removed, Tables 2 and 3 rebuilt). Cross-resolution notebook written and dry-run tested with a stand-in model (Section 7.5) | notebooks/13_cross_resolution.ipynb |
 
 Claude also reviewed the locations in Google satellite imagery as a separate check. According to the author, this did not influence the labels, and it is not reported in the paper.
 
@@ -221,6 +222,14 @@ Following Tousi et al. (2025): the vision model (Gemma 4 26B) answers the paper'
 - **Experiment C2, transfer with no local labels:** train on Missouri (all 621, and test150 only for the main table), test on the 297 Hisar locations.
 - **Experiment C3, limited local labels:** draw k labelled Hisar locations at random (k = 10, 25, 50, 100, 150, 200; 200 draws each; draws whose remaining part has no gully are skipped, which happened 5 times at k = 200) and test on the Hisar locations not drawn. The k labels are used in four ways: (a) added to the Missouri training data; (b) added with extra weight, so Hisar and Missouri carry equal total weight; (c) a classifier trained on the k Hisar labels alone; (d) the Missouri-trained classifier kept unchanged, with the k labels used only to set its cut-off (placed just above the scores of 90% of the no-gully fields among the k labels, aiming at about 10% false alarms). Pipelines A and B are scored on exactly the same test locations in every draw.
 - **Intervals and tests:** bootstrap for AUC and balanced accuracy; Wilson intervals for rates on Hisar; exact McNemar test for paired false alarms of B and C on the same Hisar fields.
+
+### 7.5 Cross-resolution test (notebook ready, to run)
+
+- **Question:** does Pipeline A still separate gully from no-gully fields at Sentinel-2 detail, and does super-resolution change its answers on Hisar?
+- **Same model, prompt and settings** as the main Pipeline A run (Gemma 4 26B, evidence prompt, temperature 0, seed 42); notebooks/13_cross_resolution.ipynb.
+- **How the detail is reduced:** each image inside a collage is averaged down to the target pixel size and enlarged back with Lanczos, as in the original collages; the date labels stay sharp. Missouri images (128 m across, 1 m pixels) are reduced to 2.5 m (51 px) and 10 m (13 px). Hisar images (320 m across, 2.5 m after super-resolution) are reduced to 10 m (32 px), which stands in for the Sentinel-2 image without super-resolution.
+- **Controls:** the original Missouri test150 collages and the original Hisar collages are run again, to measure how much results change between runs.
+- **Not changed by this test:** the footprint (Missouri 128 m, Hisar 320 m), sensor and season.
 
 ## 8. Results
 
@@ -458,8 +467,7 @@ Their test split differs from our 150-location subset, so these are rough refere
 
 | Step | Who | When |
 |---|---|---|
-| Cross-resolution test (abstract promise): Pipeline A (Gemma 4 26B) on Missouri at 2.5 m and 10 m detail, and on Hisar at plain 10 m without super-resolution; the notebook also records the Ollama and model versions | Claude prepares; Japmanya runs on Kaggle (about 2.5 h) | 10–13 Nov |
-| Commit the GitHub clean-up: remove the failed and partial result files, add results/missouri/test150_ids.csv, the updated 12_results_tables.py, the rebuilt Tables 2 and 3 and this log | Japmanya | 10 Nov |
+| Cross-resolution test (abstract promise): Pipeline A (Gemma 4 26B) on Missouri at 2.5 m and 10 m detail, and on Hisar at plain 10 m without super-resolution; the notebook also records the Ollama and model versions | Notebook ready (notebooks/13_cross_resolution.ipynb); Japmanya runs it on Kaggle (about 3 h) | 10–13 Nov |
 | Check whether the Missouri download marks Tousi et al.'s split (310 development, 311 test), for example a field in GT_L6_Tol.json; if it does, re-score A, B and C on their 311 test fields | Japmanya checks (5 min); Claude re-scores | 10 Nov |
 | Email pjteam@agriwefiitkgp.in: template, page limit, theme, and the early-bird date (the website says 15 Nov, the brochure 25 Nov) | Japmanya | 10 Nov |
 | Register after the acceptance email (15 Nov), by 25 Nov; student fee Rs 2,500 early or Rs 3,000 late, non-refundable | Japmanya | 15–25 Nov |
