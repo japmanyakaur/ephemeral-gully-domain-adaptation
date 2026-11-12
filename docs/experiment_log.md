@@ -1,6 +1,6 @@
 # Ephemeral Gully Detection in Hisar–Fatehabad–Sirsa: Project Status, Log and Results
 
-*The one document for this project: where things stand, every step and result so far, and the plan, written so each part can go straight into the paper draft. Status on 9 November: dataset, labels, terrain analysis and all three pipelines (A, B, C) are done and on GitHub; the cross-resolution test, figures and the paper draft are next, on track for 30 November. AgriWEF 2027, IIT Kharagpur (conference 2–4 February 2027). Acceptance notification 15 November, registration by 25 November, full paper due 30 November 2026; proceedings or edited book for selected papers. Last updated 10 November 2026.*
+*The one document for this project: where things stand, every step and result so far, and the plan, written so each part can go straight into the paper draft. Status on 11 November: dataset, labels, terrain analysis, all three pipelines (A, B, C) and the cross-resolution test are done; figures and the paper draft are next, on track for 30 November. AgriWEF 2027, IIT Kharagpur (conference 2–4 February 2027). Acceptance notification 15 November, registration by 25 November, full paper due 30 November 2026; proceedings or edited book for selected papers. Last updated 11 November 2026.*
 
 ## 1. Key results at a glance
 
@@ -20,9 +20,12 @@ These are the numbers to quote in the abstract, results and conclusion. Each one
 | Pipeline B on Hisar | Finds 7 of 10 gullies; false-alarm rate 28.6% (95% CI 23.7–34.1%); AUC 0.74 | 8.7 |
 | Pipeline C (classifier on the 19 answers, trained on Missouri) on Hisar | Finds the same 7 of 10 gullies with false-alarm rate 20.9% (16.6–26.0%); removes 22 of Pipeline B's 82 false alarms and adds none (exact McNemar p < 0.001); AUC 0.79 (0.62–0.94) | 8.8 |
 | Limited local labels | Retraining with 10–200 Hisar labels did not help (about 1 gully per 30 labelled fields). Using the local labels only to set the cut-off did: with 100 labels, about 54% of gullies found at a 7% false-alarm rate, against 30% at 6% for Pipeline A | 8.8 |
+| Image detail (Pipeline A, Missouri held-out) | Same model, prompt and fields with the images reduced in detail: AUC 0.862 at 1 m, 0.823 at 2.5 m, 0.630 at 10 m; gullies found 85%, 80%, 37% | 8.10 |
+| Super-resolution (Pipeline A, Hisar) | Super-resolved 2.5 m against plain 10 m: 18 against 8 false alarms (6.3% vs 2.8%; exact McNemar p = 0.04); gullies found 3 and 4 of 10; AUC 0.70 and 0.67 | 8.10 |
+| Repeatability | Control runs in a later Kaggle session reproduced every score and explanation exactly (450 of 450 locations) | 8.10 |
 | Cost | About 5 seconds per location for Pipeline A and 11 seconds for Pipeline B on a free Kaggle GPU (2 × T4); Pipeline C trains in under a second on a laptop | 8.4, 8.7 |
 
-**Main message for the paper.** A zero-shot vision-language model that works well on hilly US farmland (AUC 0.86) transfers poorly to flat, canal-irrigated farmland in Haryana. There, gullies are rare because the land is almost level, and most of the model's "gully" calls are false alarms. Gemma's own explanations show it reading irregular linear features such as tracks and field boundaries as erosion channels. The approaches trade off differently: direct prompting (A) gives few false alarms but finds 3 of 10 gullies; structured questions (B) find 7 of 10 but raise a false alarm on almost 3 in 10 fields; a small classifier trained on B's answers in Missouri (C) keeps the 7 and cuts B's false alarms by a quarter. With gullies this rare, a few hundred local labels contain too few gullies to retrain on, but they are enough to set the cut-off for the new region. All Hisar differences rest on 10 gullies, so their intervals are wide.
+**Main message for the paper.** A zero-shot vision-language model that works well on hilly US farmland (AUC 0.86) transfers poorly to flat, canal-irrigated farmland in Haryana. There, gullies are rare because the land is almost level, and most of the model's "gully" calls are false alarms. Gemma's own explanations show it reading irregular linear features such as tracks and field boundaries as erosion channels. Image detail alone can explain much of the drop: on the same Missouri fields the model keeps most of its skill at 2.5 m (AUC 0.82) but loses most of it at 10 m (AUC 0.63, 37% of gullies found), and on Hisar, super-resolving the 10 m images to 2.5 m does not bring the detail back: it more than doubles the false alarms (18 against 8) without finding more gullies. The approaches trade off differently: direct prompting (A) gives few false alarms but finds 3 of 10 gullies; structured questions (B) find 7 of 10 but raise a false alarm on almost 3 in 10 fields; a small classifier trained on B's answers in Missouri (C) keeps the 7 and cuts B's false alarms by a quarter. With gullies this rare, a few hundred local labels contain too few gullies to retrain on, but they are enough to set the cut-off for the new region. All Hisar differences rest on 10 gullies, so their intervals are wide. In practice, this approach appears to need real imagery of about 2.5 m or finer, with a few local labels to set the cut-off.
 
 ## 2. Step-by-step log
 
@@ -49,6 +52,8 @@ These are the numbers to quote in the abstract, results and conclusion. Each one
 | 8 Nov | Main results table for A, B and C on the same fields, with confidence intervals and a paired test | 12_results_tables.py, results/tables/ |
 | 9 Nov | Terrain script run by the author and committed; the saved numbers match Section 5. Pipeline B, Pipeline C, results table, labels and this log pushed to GitHub. Pre-submission review: conference pages read (no template or page limit published), risks and strengths in Section 15, to-do list updated. GitHub clean-up: failed and partial result files removed; Tables 2 and 3 rebuilt only from saved files by 12_results_tables.py | results/terrain/ |
 | 10 Nov | GitHub clean-up committed (failed files removed, Tables 2 and 3 rebuilt). Cross-resolution notebook written and dry-run tested with a stand-in model (Section 7.5) | notebooks/13_cross_resolution.ipynb |
+| 10 Nov | Cross-resolution test run on Kaggle (notebook 13): Missouri at 2.5 m and 10 m, Hisar at plain 10 m. The first session stopped when the laptop shut down; the rerun gave identical answers for all 1,094 locations both runs completed. The control files of this run were not downloaded and were lost | results/crossres/ |
+| 11 Nov | Control runs (notebook 13b): the original Missouri test150 and Hisar collages run again, identical to the 6 Nov runs. Results script, tables and figure (Section 8.10) | notebooks/13b_cross_resolution_repeats.ipynb, 13_cross_resolution_results.py, results/tables/crossres_*.csv, results/crossres/crossres_results.png |
 
 Claude also reviewed the locations in Google satellite imagery as a separate check. According to the author, this did not influence the labels, and it is not reported in the paper.
 
@@ -66,6 +71,8 @@ These are useful for the methods and reproducibility parts of the paper.
 | First dataset was in the wrong tile (T43REM) | Rebuilt in T43REN; the notebook now stops if any tile falls outside Hisar, Fatehabad or Sirsa |
 | Collage script had the old dates written into the code | It now reads the dates from the metadata |
 | Which "gully" cut-off to use | Chosen once on the 150 Missouri test fields (score 3 or more = gully), then used unchanged on the 471 other Missouri fields and on Hisar |
+| A Kaggle run in the editor stopped when the laptop shut down | Rerun from the start; its answers were identical to the first run's for every location both runs completed |
+| The control files of the cross-resolution run were not downloaded before the next run and were lost | Notebook 13b reruns only the two control jobs |
 
 ## 4. Data
 
@@ -197,7 +204,7 @@ Skipped: 288 and 290 (Hisar), 289 (Fatehabad), all built-up areas.
 
 ### 7.1 Common setup
 
-- Models run with Ollama on Kaggle (2 × NVIDIA T4, free tier).
+- Models run with Ollama on Kaggle (2 × NVIDIA T4, free tier). Versions recorded on 10 Nov (results/crossres/run_info.json): Ollama 0.40.16; Gemma 4 26B as gemma4:26b, 25.2B parameters, Q4_K_M quantisation.
 - Temperature 0, seed 42, fixed JSON answer format (Ollama `format` with a JSON schema), so answers are repeatable and machine-readable. Context 8,192 tokens; answer length capped (700 tokens in A3–A4, 900 in Pipeline B).
 - Input: one collage per location (Missouri: 6 dates; Hisar: 5 dates plus a legend cell).
 - Metrics: AUC of the 1–5 score (0.5 = guessing, 1 = perfect); balanced accuracy (mean of the accuracy on gully and no-gully fields; 0.5 = guessing); accuracy; F1; precision; sensitivity (share of gullies found); specificity (share of no-gully fields correctly left alone); false-alarm rate = 1 − specificity; share of fields called gully. 95% intervals: bootstrap for Missouri, Wilson intervals for Hisar proportions.
@@ -223,13 +230,15 @@ Following Tousi et al. (2025): the vision model (Gemma 4 26B) answers the paper'
 - **Experiment C3, limited local labels:** draw k labelled Hisar locations at random (k = 10, 25, 50, 100, 150, 200; 200 draws each; draws whose remaining part has no gully are skipped, which happened 5 times at k = 200) and test on the Hisar locations not drawn. The k labels are used in four ways: (a) added to the Missouri training data; (b) added with extra weight, so Hisar and Missouri carry equal total weight; (c) a classifier trained on the k Hisar labels alone; (d) the Missouri-trained classifier kept unchanged, with the k labels used only to set its cut-off (placed just above the scores of 90% of the no-gully fields among the k labels, aiming at about 10% false alarms). Pipelines A and B are scored on exactly the same test locations in every draw.
 - **Intervals and tests:** bootstrap for AUC and balanced accuracy; Wilson intervals for rates on Hisar; exact McNemar test for paired false alarms of B and C on the same Hisar fields.
 
-### 7.5 Cross-resolution test (notebook ready, to run)
+### 7.5 Cross-resolution test
 
 - **Question:** does Pipeline A still separate gully from no-gully fields at Sentinel-2 detail, and does super-resolution change its answers on Hisar?
 - **Same model, prompt and settings** as the main Pipeline A run (Gemma 4 26B, evidence prompt, temperature 0, seed 42); notebooks/13_cross_resolution.ipynb.
 - **How the detail is reduced:** each image inside a collage is averaged down to the target pixel size and enlarged back with Lanczos, as in the original collages; the date labels stay sharp. Missouri images (128 m across, 1 m pixels) are reduced to 2.5 m (51 px) and 10 m (13 px). Hisar images (320 m across, 2.5 m after super-resolution) are reduced to 10 m (32 px), which stands in for the Sentinel-2 image without super-resolution.
 - **Controls:** the original Missouri test150 collages and the original Hisar collages are run again, to measure how much results change between runs.
 - **Not changed by this test:** the footprint (Missouri 128 m, Hisar 320 m), sensor and season.
+- **Runs:** notebook 13 (reduced-detail runs, 10 Nov) and notebook 13b (control runs). Ollama and model versions are saved in results/crossres/run_info.json (and run_info_repeats.json for the control runs).
+- **Analysis** (13_cross_resolution_results.py): Missouri AUC with a paired bootstrap of the change from 1 m (2,000 resamples), on the 471 held-out fields with the fixed cut-off; Hisar false alarms compared on the same no-gully fields with the exact McNemar test.
 
 ## 8. Results
 
@@ -416,6 +425,46 @@ From results/tables/main_results.csv (12_results_tables.py). Cut-offs fixed on M
 
 **Other measures** (12_results_tables.py). Average precision on Hisar, where chance is 0.034: A 0.091, B 0.072, C trained on all 621 Missouri 0.210, C trained on test150 0.082. Held-out Missouri in Tousi et al.'s measures (accuracy, F1 for gully, macro F1): A 0.824, 0.852, 0.817; B 0.673, 0.781, 0.569; C 0.715, 0.794, 0.666.
 
+### 8.10 Cross-resolution test (Pipeline A, Gemma 4 26B)
+
+Same model, prompt, settings and cut-off (score ≥ 3) as Sections 8.4 and 8.5; only the images change. Source: results/tables/crossres_missouri.csv, crossres_hisar.csv and crossres_paired_tests.txt (13_cross_resolution_results.py); figure results/crossres/crossres_results.png.
+
+**Missouri, 471 held-out fields**
+
+| Image detail | Pixels across one image | AUC (95% CI) | Change from 1 m (95% CI) | Balanced accuracy | Gullies found | False-alarm rate | Called "gully" |
+|---|---|---|---|---|---|---|---|
+| 1 m (original) | 128 | 0.862 (0.827–0.894) | – | 0.817 | 85% | 21.9% | 59% |
+| 2.5 m | 51 | 0.823 (0.782–0.860) | −0.039 (−0.071 to −0.009) | 0.796 | 80% | 20.3% | 55% |
+| 10 m | 13 | 0.630 (0.589–0.673) | −0.233 (−0.279 to −0.182) | 0.611 | 37% | 15.1% | 28% |
+
+On the 150 test fields the pattern is the same: AUC 0.823, 0.790 and 0.613.
+
+**Hisar, 297 labelled locations**
+
+| Images | Called "gully" | Gullies found | False alarms | False-alarm rate (95% CI) | AUC | Balanced accuracy |
+|---|---|---|---|---|---|---|
+| Super-resolved to 2.5 m (main run, 6 Nov) | 21 | 3 of 10 | 18 | 6.3% (4.0–9.7%) | 0.695 | 0.619 |
+| Same images, control run (13b) | 21 | 3 of 10 | 18 | 6.3% (4.0–9.7%) | 0.695 | 0.619 |
+| Plain 10 m (no super-resolution) | 12 | 4 of 10 | 8 | 2.8% (1.4–5.4%) | 0.674 | 0.686 |
+
+- **False alarms, paired:** 3 fields are false alarms in both (26, 168, 211), 15 only with super-resolution, 5 only at 10 m (75, 195, 212, 239, 296); exact McNemar p = 0.041.
+- **Gullies found:** both find 3, 51 and 117; plain 10 m also finds 143 (score 4 against 2).
+- **Ranking:** AUC difference +0.022 (95% bootstrap interval −0.041 to +0.124), so no clear difference.
+- **What changes:** on the 15 fields that are false alarms only with super-resolution, all 15 explanations mention an erosion channel or gully (scores 3–4). At 10 m, the explanations for the same fields describe the lines as roads, tracks, paths or field boundaries (15 of 15) and give scores of 1–2.
+
+**Repeatability**
+
+- The control runs reproduced the 6 November runs exactly: the same score and the same explanation text for all 150 Missouri test fields and all 300 Hisar locations.
+- The reduced-detail run was made twice (the first session stopped); the two runs agree on every location both completed (1,094).
+- So the differences above come from the images, not from run-to-run variation.
+
+**What it means**
+
+- **Image detail matters.** At 2.5 m Gemma keeps most of its skill (AUC −0.04); at 10 m it loses most of it (−0.23) and finds only 37% of the gullies. At 10 m a 128 m Missouri image is 13 × 13 pixels, and a gully a few metres wide is narrower than one pixel.
+- **Super-resolution does not bring the detail back.** On Hisar it did not find more gullies, ranked fields about the same, and more than doubled the false alarms. The sharper-looking texture seems to make tracks and boundaries look like erosion channels.
+- **For the paper:** together with Section 8.6, this suggests that much of the drop from Missouri to Hisar comes from image detail, on top of the rarity of gullies in flat land. With this approach, ephemeral gullies need real imagery of about 2.5 m or finer; free 10 m imagery, with or without SEN2SR, is not enough.
+- **Caveats:** the reduced Missouri images are averaged aerial photos, not real satellite images (no sensor blur, noise, atmosphere or other spectral bands), so the 10 m result is probably a best case for a real 10 m sensor. The Hisar 10 m images were made by averaging the super-resolved images back to 10 m pixels, which approximates the original Sentinel-2 image but is not the same. SEN2SR was run on the 8-bit true-colour product with a synthetic NIR band (Section 4.2), so a run on the real reflectance bands might behave differently.
+
 ## 9. Figures and tables for the paper
 
 | # | Content | Source | Status |
@@ -426,12 +475,14 @@ From results/tables/main_results.csv (12_results_tables.py). Cut-offs fixed on M
 | Figure 4 | Score distributions, Missouri gully / no gully vs Hisar | A4 results | To make |
 | Figure 5 | False-alarm examples with Gemma's explanation | Section 8.5 | To make |
 | Figure 6 | Label efficiency (Pipeline C) | results/pipeline_c/label_efficiency.png | Draft done; restyle for the paper |
+| Figure 7 | Cross-resolution test: one example image at 1, 2.5 and 10 m; Missouri AUC against image detail; Hisar false alarms with and without super-resolution | results/crossres/crossres_examples.png and crossres_results.png | Draft done; combine and restyle for the paper |
 | Table 1 | Datasets (Missouri vs Hisar) | Section 4 | Ready |
 | Table 2 | Prompt comparison (Qwen2.5-VL-7B) | Section 8.2, results/tables/prompt_comparison_qwen2.5vl.csv | Ready |
 | Table 3 | Model comparison (A3) | Section 8.3, results/tables/model_comparison_test150.csv | Ready |
 | Table 4 | Pipelines A, B, C on Missouri held-out and Hisar | Section 8.9, results/tables/main_results.csv | Ready |
 | Table 5 | Runtime per model on a free GPU | Sections 8.3, 8.7 | Ready |
 | Table 6 | Limited local labels | Section 8.8 (C3) | Ready |
+| Table 7 | Cross-resolution results | Section 8.10, results/tables/crossres_missouri.csv, crossres_hisar.csv | Ready |
 
 ## 10. Reference numbers from Tousi et al. (2025), Missouri test split
 
@@ -452,7 +503,7 @@ Their test split differs from our 150-location subset, so these are rough refere
 - Only 10 gullies in Hisar, so sensitivity has a very wide interval; the false-alarm rate is the reliable Hisar measure.
 - At 2.5 m (super-resolved from 10 m) a gully can be narrower than one pixel.
 - Prompt and cut-off were chosen on Missouri, then applied to Hisar unchanged (intended: this is the transfer test).
-- Repeated runs vary by about 0.02 AUC even at temperature 0.
+- Repeatability: earlier test runs differed by about 0.02 AUC, but with the final setup the control runs reproduced every score and explanation exactly (450 of 450 locations; Section 8.10).
 - Our Missouri test subset differs from Tousi et al.'s split.
 - The largest models (72B, 90B) could not be run on free GPUs.
 - The slope figures come from SRTM, a surface model with about 1–2 m noise.
@@ -462,19 +513,20 @@ Their test split differs from our 150-location subset, so these are rough refere
 - The January images come after the post-monsoon tillage that fills ephemeral gullies, so gullies formed in the monsoon may already be erased.
 - SEN2SR was given the 8-bit true-colour product and a synthetic NIR band, not the surface-reflectance bands it was trained on.
 - Missouri and Hisar differ in more than location: sensor, resolution, footprint (128 m vs 320 m), season, labellers and gully share.
+- The cross-resolution test reduces detail by averaging pixels, which is not the same as a real satellite image, and the Hisar 10 m images are averaged back from the super-resolved images (Section 8.10).
 
 ## 12. Still to do
 
 | Step | Who | When |
 |---|---|---|
-| Cross-resolution test (abstract promise): Pipeline A (Gemma 4 26B) on Missouri at 2.5 m and 10 m detail, and on Hisar at plain 10 m without super-resolution; the notebook also records the Ollama and model versions | Notebook ready (notebooks/13_cross_resolution.ipynb); Japmanya runs it on Kaggle (about 3 h) | 10–13 Nov |
+| Commit the cross-resolution files (git commands given on 11 Nov) | Japmanya | 11 Nov |
 | Check whether the Missouri download marks Tousi et al.'s split (310 development, 311 test), for example a field in GT_L6_Tol.json; if it does, re-score A, B and C on their 311 test fields | Japmanya checks (5 min); Claude re-scores | 10 Nov |
 | Email pjteam@agriwefiitkgp.in: template, page limit, theme, and the early-bird date (the website says 15 Nov, the brochure 25 Nov) | Japmanya | 10 Nov |
 | Register after the acceptance email (15 Nov), by 25 Nov; student fee Rs 2,500 early or Rs 3,000 late, non-refundable | Japmanya | 15–25 Nov |
 | Repository: licence (code MIT; labels and derived images CC BY 4.0 with "Contains modified Copernicus Sentinel data 2020–2024"), README update (labels, Pipelines B and C, results, correct Missouri dataset link, remove the old v1.0 note), Zenodo archive for a citable DOI | Claude drafts; Japmanya commits | 12–20 Nov |
 | Extra analyses without new model runs: average precision and Tousi et al.'s measures (added to 12_results_tables.py); terrain slope at each location, gully vs no gully | Claude; Japmanya re-runs the terrain script (1 min) | 11–13 Nov |
 | Figures 2–6 and the final tables. Figure 2 uses only examples with clear evidence; no Google Earth screenshots unless Google's attribution rules are met | Claude | 12–16 Nov |
-| Optional, only if time: redo super-resolution from the real reflectance bands (only if the cross-resolution test shows that super-resolution changes the results); one-date vs five-date test on Hisar | – | If time |
+| Optional: redo super-resolution from the real reflectance bands. The cross-resolution test shows that super-resolution does change the results (more false alarms), which was the condition for this step. Suggested: skip it for this paper because of time, state the exact input as a limitation and name a proper run as future work. Also optional: one-date vs five-date test on Hisar | Japmanya decides | If time |
 | Paper draft, section by section | Claude drafts, Japmanya edits | 16–26 Nov |
 | AI-use statement: AI tools were used for coding, analysis support and writing; check the AgriWEF and publisher policy and add the required statement | Japmanya | Before submission |
 | Formatting and submission | Japmanya | 27–30 Nov |
@@ -493,7 +545,7 @@ The abstract promises to evaluate, assess and quantify. It does not promise an a
 | Direct zero-shot VLM prompting on multi-temporal imagery | Done on Missouri and Hisar; on Hisar the false-alarm rate is 6.3% and 3 of 10 gullies are found | Results |
 | Structured visual question answering with reasoning-based aggregation | Done (Pipeline B): Missouri held-out AUC 0.63; Hisar 7 of 10 gullies found, false-alarm rate 28.6% | Methods, Results |
 | Lightweight classifier on VLM features with limited local labels | Done (Pipeline C): Hisar 7 of 10 found, false-alarm rate 20.9%; local labels help when used to set the cut-off, not when used to retrain | Methods, Results |
-| Cross-region and cross-resolution generalisation; how much local labels recover | Cross-region done for A, B and C (Sections 8.6, 8.9); local-label curve in Section 8.8. Cross-resolution not yet separated: Missouri (about 1 m aerial) and Hisar (10 m Sentinel-2, super-resolved to 2.5 m) differ in both region and resolution, so a Missouri run at reduced resolution is planned | Results, Discussion |
+| Cross-region and cross-resolution generalisation; how much local labels recover | Done. Cross-region for A, B and C (Sections 8.6, 8.9); cross-resolution for Pipeline A: Missouri at 1, 2.5 and 10 m, and Hisar with and without super-resolution (Section 8.10); local-label curve in Section 8.8 | Results, Discussion |
 
 ## 14. Paper outline
 
@@ -505,7 +557,7 @@ Planned sections, with the figures and tables listed in Section 9.
 | Related work | Tousi et al. (2025) and its follow-up; satellite erosion mapping; SEN2SR | – |
 | Study area and data | Hisar–Fatehabad–Sirsa, terrain, Sentinel-2 T43REN, dates, processing, labelling protocol; Missouri reference data | Figures 1–2, Table 1 |
 | Methods | Pipelines A, B and C; prompts; models; metrics; cut-off protocol | Figure 3; prompts in an appendix |
-| Results | Prompt comparison, model comparison, Missouri vs Hisar, false alarms, label efficiency, runtime | Tables 2–5, Figures 4–6 |
+| Results | Prompt comparison, model comparison, Missouri vs Hisar, false alarms, label efficiency, cross-resolution, runtime | Tables 2–7, Figures 4–7 |
 | Discussion | Why transfer is hard (terrain, rarity, resolution, man-made lines), what works on a free GPU, limitations | – |
 | Conclusion | Main numbers and what they mean for low-cost monitoring | – |
 
@@ -515,13 +567,13 @@ Planned sections, with the figures and tables listed in Section 9.
 - Sub-pixel gullies: at 2.5 m a gully can be narrower than one pixel, so only indirect signs show in the Sentinel-2 collages. The paper says so.
 - Kaggle GPU quota: about 30 GPU hours a week. Pipeline B asks all 19 questions in one call to keep runs to a few hours.
 - **Can the labels be checked?** At 10 m (2.5 m after super-resolution) an ephemeral gully is usually thinner than a pixel, so in our images roads, drains and tree lines are often clearer than the gully itself, and the labels relied on Google Earth. One labeller, no field visit. Decision (9 Nov): no second labeller; the paper says plainly that the labels come from one annotator using our images and Google Earth, without independent checking or a field visit, and Figure 2 uses only examples whose evidence is clear.
-- **Can 10 m imagery show ephemeral gullies at all?** Response: the cross-resolution test (Missouri at 1, 2.5 and 10 m; Hisar with and without super-resolution).
+- **Can 10 m imagery show ephemeral gullies at all?** Answered by the cross-resolution test (Section 8.10): mostly not. On the same Missouri fields, AUC falls from 0.86 at 1 m to 0.63 at 10 m and only 37% of gullies are found, while 2.5 m keeps most of the skill. The paper reports this as a finding, because it tells users what imagery they need.
 - **Season.** The January (rabi) images come after the post-monsoon tillage that fills ephemeral gullies, so gullies formed in the monsoon may already be erased. Response: explain the choice (cloud-free, the same crop stage every year, as in the abstract) and name post-monsoon imagery as future work.
-- **Super-resolution input.** SEN2SR expects surface-reflectance bands (B04, B03, B02 and B08, divided by 10,000). We gave it the 8-bit true-colour product and a synthetic NIR band computed from green and red. Response: state this exactly in the methods; the Hisar test with and without super-resolution shows how much it matters; redo it with the real bands only if it does.
-- **Many differences at once.** Missouri and Hisar differ in sensor, resolution, footprint (128 m vs 320 m), dates and season, labellers, and gully share (57% vs 3.4%), so the drop cannot be put on "region" alone. Response: list these in the paper; the cross-resolution test separates resolution.
+- **Super-resolution input.** SEN2SR expects surface-reflectance bands (B04, B03, B02 and B08, divided by 10,000). We gave it the 8-bit true-colour product and a synthetic NIR band computed from green and red. Result: it matters. Super-resolution more than doubled the false alarms on Hisar without finding more gullies (Section 8.10). Response: state the exact input in the methods and present this result as true for our setup; a run on the real bands is future work unless time allows (Section 12).
+- **Many differences at once.** Missouri and Hisar differ in sensor, resolution, footprint (128 m vs 320 m), dates and season, labellers, and gully share (57% vs 3.4%), so the drop cannot be put on "region" alone. Response: list these in the paper; the cross-resolution test separates resolution and shows that it alone can explain much of the drop (Section 8.10).
 - **Indirect comparison with Tousi et al.** Different split, measures and models; our Pipeline B asks all 19 questions in one call and uses our own decision prompt. Response: re-score on their split if it is available; otherwise report their measures on our held-out set and call the comparison indirect. On the 471 held-out Missouri fields Pipeline A reaches accuracy 0.824 and macro F1 0.817 (their best: 0.714 and 0.671).
 - **Few gullies.** Only 10; AUC differences on Hisar are not significant; local-label variants (b) and (d) were added after the first run. Response: intervals and paired tests; call the local-label result exploratory; add average precision (Hisar, chance level 0.034: A 0.091, B 0.072, C 0.210).
-- **Reproducibility gaps.** Model versions and quantisation are not recorded, and the repository has no licence. Response: Section 12. (Fixed on 9 Nov: failed result files removed; Tables 2 and 3 now come only from saved files.)
+- **Reproducibility gaps.** Model versions and quantisation were not recorded for the 6 Nov runs, and the repository has no licence. Response: Section 12. (Fixed on 9 Nov: failed result files removed; Tables 2 and 3 now come only from saved files. Fixed on 11 Nov: the cross-resolution runs record the versions in results/crossres/run_info.json: Ollama 0.40.16, gemma4:26b, 25.2B parameters, Q4_K_M quantisation, 2 × Tesla T4; the control runs reproduced the 6 Nov answers exactly, which indicates that the 6 Nov runs used the same model.)
 - **Names.** Tousi et al.'s "Pipeline C" is a reasoning pipeline; ours is a classifier (their "transfer learning"). Response: define the names once, clearly.
 - **Audience.** AgriWEF reviewers are likely to be agricultural and soil-and-water engineers. Response: frame the paper around soil conservation, give the standard gully definition, explain the terrain, and end with practical advice.
 
@@ -533,6 +585,7 @@ Planned sections, with the figures and tables listed in Section 9.
 - **Careful protocol:** cut-offs fixed on a separate subset; held-out evaluation; labels frozen before seeing results; every model and prompt reported, including failures; intervals and paired tests.
 - **Useful lessons:** asking for evidence first removes the yes-bias (96.7% → 27% "gully" on the same 150 fields); a small classifier on the 19 answers removes a quarter of Pipeline B's false alarms without losing a gully (p < 0.001); where gullies are rare, local labels are better spent on setting the cut-off than on retraining.
 - **Physical explanation:** the terrain analysis (median slope 0.45%) explains why gullies are rare and ties the AI result to the landscape.
+- **Controlled resolution test:** the same model, prompt and fields at 1, 2.5 and 10 m show where the method stops working, and super-resolution is shown not to replace real detail; control runs reproduced every answer exactly.
 - **Low cost:** about 5 seconds per location, so a district can be screened in hours.
 - **Fits the conference:** Theme 5 (ML for soil and crop health; resource conservation) and Theme 1 (water-driven natural hazards).
 
