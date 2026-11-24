@@ -1,6 +1,6 @@
 # Ephemeral Gully Domain Adaptation
 
-A multi-temporal Sentinel-2 dataset and processing pipeline for ephemeral gully detection in Indian agricultural landscapes, and an evaluation of zero-shot vision-language models (VLMs) transferred from the [Missouri Ephemeral Gully Dataset](https://data.mendeley.com/) (NAIP, ~1 m, USA) to the Hisar–Fatehabad–Sirsa agricultural belt in Haryana, India.
+A multi-temporal Sentinel-2 dataset and processing pipeline for ephemeral gully detection in Indian agricultural landscapes, and an evaluation of zero-shot vision-language models (VLMs) transferred from the [Missouri Ephemeral Gully Dataset](https://data.mendeley.com/) (NAIP, ~1 m, USA) to the Hisar–Fatehabad–Sirsa agricultural belt in Haryana, India
 
 Method reference: Tousi et al., *A Zero-Shot Learning Approach for Ephemeral Gully Detection from Remote Sensing using Vision Language Models*, WACV 2025 Workshops ([arXiv 2503.01169](https://arxiv.org/abs/2503.01169)).
 
